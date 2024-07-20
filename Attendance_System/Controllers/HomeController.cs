@@ -10,6 +10,9 @@ using System.Net;
 using RestSharp;
 using System.Net.PeerToPeer;
 using System.Collections.Specialized;
+using System.Net.Http.Headers;
+using System.Net.Http;
+using System.Threading.Tasks;
 
 
 
@@ -364,18 +367,7 @@ namespace Attendance.Controllers
                     }
                 }
 
-                using (WebClient client = new WebClient())
-                {
-                    byte[] response =
-                    client.UploadValues("https://semaphore.co/api/v4/messages", new NameValueCollection()
-                    {
-                        { "apikey", "a8ba95e57a2a01cd12e5f36a6eb2d93c" },
-                        { "number", "09939319964" },
-                        { "message", "I just sent my first message with Semaphore" },
-                        { "sendername", "SEMAPHORE" },
-                    });
-                    string result = System.Text.Encoding.UTF8.GetString(response);
-                }
+                
 
                 return Json(new { success = true, message = "Student Application Approved" });
 
@@ -387,5 +379,124 @@ namespace Attendance.Controllers
 
         }
 
+
+        [HttpPost]
+        public ActionResult Attendance(string course_id, string date)
+        {
+            try
+            {
+                var attendanceList = new List<Dictionary<string, object>>();
+
+                using (var db = new SqlConnection(connStr))
+                {
+                    db.Open();
+
+                    string query = @"
+                                    SELECT 
+                                        s.STUDENT_ID,
+                                        s.STUDENT_LASTNAME,
+                                        s.STUDENT_FIRSTNAME,
+                                        s.STUDENT_MIDNAME,
+                                        a.ATTENDANCE_DATE,
+                                        a.ATTENDANCE_TIME_IN,
+                                        a.ATTENDANCE_STATUS,
+                                        a.ATTENDANCE_SUPPORTING_DOCS
+                                    FROM 
+                                        STUDENT sc
+                                        INNER JOIN STUDENT_COURSE sc ON s.STUDENT_ID = sc.STUDENT_ID
+                                        LEFT JOIN ATTENDANCE a ON sc.COURSE_ID = a.COURSE_ID
+                                    WHERE 
+                                        sc.COURSE_ID = @course_id
+                                        AND a.ATTENDANCE_DATE = @date
+                                    ORDER BY 
+                                        s.STUDENT_LASTNAME, s.STUDENT_FIRSTNAME
+                                ";
+
+                    using (var cmd = new SqlCommand(query, db))
+                    {
+                        cmd.Parameters.AddWithValue("@course_id", course_id);
+                        cmd.Parameters.AddWithValue("@date", date);
+
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                var list = new Dictionary<string, object>()
+                                {
+                                    {"student_id", reader["student_id"].ToString() },
+                                    {"student_lastname", reader["student_lastname"].ToString() },
+                                    {"student_firstname", reader["student_firstname"].ToString() },
+                                    {"student_midname", reader["student_midname"].ToString() },
+                                    {"time_in", reader["attendance_time_in"].ToString() },
+                                    {"remarks", reader["attendance_status"].ToString() },
+                                    {"docs", reader["attendance_supporting_docs"].ToString() }
+                                };
+                                
+                                attendanceList.Add(list);
+                            }
+                        }
+                    }
+                }
+                return Json(attendanceList, JsonRequestBehavior.AllowGet);
+
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Error: " + ex.Message });
+            }
+
+        }
+
+        [HttpPost]
+        public ActionResult Start(string course_id, string date)
+        {
+            try
+            {
+                var attendanceList = new List<Dictionary<string, object>>();
+
+                using (var db = new SqlConnection(connStr))
+                {
+                    db.Open();
+
+                    string query = @"
+                                    INSERT INTO attendance (student_id, course_id, attendance_date)
+                                    SELECT student_id, course_id, GETDATE() AS attendance_date
+                                    FROM student_course
+                                    WHERE course_id = @course_id;
+                                ";
+
+                    using (var cmd = new SqlCommand(query, db))
+                    {
+                        cmd.Parameters.AddWithValue("@course_id", course_id);
+
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                var list = new Dictionary<string, object>()
+                                {
+                                    {"student_id", reader["student_id"].ToString() },
+                                    {"student_lastname", reader["student_lastname"].ToString() },
+                                    {"student_firstname", reader["student_firstname"].ToString() },
+                                    {"student_midname", reader["student_midname"].ToString() },
+                                    {"time_in", reader["attendance_time_in"].ToString() },
+                                    {"remarks", reader["attendance_status"].ToString() },
+                                    {"docs", reader["attendance_supporting_docs"].ToString() }
+                                };
+
+                                attendanceList.Add(list);
+                            }
+                        }
+                    }
+                }
+                return Json(attendanceList, JsonRequestBehavior.AllowGet);
+
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Error: " + ex.Message });
+            }
+
+        }
     }
 } 

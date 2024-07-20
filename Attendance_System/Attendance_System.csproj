@@ -324,16 +324,19 @@
     <Content Include="Content\Images\Background 1.png" />
     <Content Include="Content\Images\Background.jpg" />
     <Content Include="Content\Images\Bookmark.png" />
+    <Content Include="Content\Images\Calendar.svg" />
     <Content Include="Content\Images\courses.svg" />
     <Content Include="Content\Images\Dashboard.svg" />
     <Content Include="Content\Images\Eye.svg" />
     <Content Include="Content\Images\Group 153.png" />
     <Content Include="Content\Images\image.svg" />
     <Content Include="Content\Images\Info.svg" />
+    <Content Include="Content\Images\Left.svg" />
     <Content Include="Content\Images\logo.png" />
     <Content Include="Content\Images\Logout.png" />
     <Content Include="Content\Images\Open Book.png" />
     <Content Include="Content\Images\Settings.svg" />
+    <Content Include="Content\Images\Slider.svg" />
     <Content Include="Content\Images\Users.svg" />
     <Content Include="Content\Images\ver-acc.svg" />
     <Content Include="favicon.ico" />
@@ -359,7 +362,7 @@
     <Content Include="Scripts\MyScript\auth.js" />
     <Content Include="Scripts\MyScript\jquery-3.7.1.min.js" />
     <Content Include="Scripts\MyScript\student.js" />
-    <Content Include="Scripts\MyScript\updateAttendance.js" />
+    <Content Include="Scripts\MyScript\admin.js" />
     <Content Include="Web.config" />
     <Content Include="Web.Debug.config">
       <DependentUpon>Web.config</DependentUpon>

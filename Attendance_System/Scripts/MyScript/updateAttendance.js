@@ -31,6 +31,22 @@
         });
     });
 
+    $('#logoutButton').click(function () {
+        Swal.fire({
+            title: 'Are you sure?',
+            text: 'Do you really want to log out?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, log out',
+            cancelButtonText: 'Cancel',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = '../auth/login';
+            }
+        });
+    })
+
     $("#update").click(function (event) {
         event.preventDefault();
 
@@ -78,6 +94,93 @@
             if (data[0].mess == 0) {
                 alert('Data was successfully removed');
                 location.reload();
+            }
+        });
+    });
+
+    $(".denyButton").click(function (event) {
+        event.preventDefault();
+
+        var formData = new FormData();
+        formData.append('student_id', $(this).data('student'))
+        formData.append('course_code', $(this).data('code'))
+        formData.append('course_section', $(this).data('section'))
+
+        $.ajax({
+            url: '../Home/Unenroll',
+            type: 'POST',
+            data: formData,
+            contentType: false,
+            processData: false,
+            success: function (response) {
+                if (response.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success',
+                        text: response.message
+                    }).then(function () {
+                        window.location.href = '../Home/Admin';
+                    });
+
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: response.message
+                    });
+                }
+            },
+            error: function (xhr, status, error) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'An error occurred. Please try again later.'
+                });
+            }
+        });
+    });
+
+    $(".approveButton").click(function (event) {
+        event.preventDefault();
+
+        var formData = new FormData();
+        formData.append('student_id', $(this).data('student'))
+        formData.append('course_code', $(this).data('code'))
+        formData.append('course_section', $(this).data('section'))
+        formData.append('contact', $(this).data('contact'))
+
+        console.log($(this).data('contact'))
+
+        $.ajax({
+            url: '../Home/Enroll',
+            type: 'POST',
+            data: formData,
+            contentType: false,
+            processData: false,
+            success: function (response) {
+                if (response.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success',
+                        text: response.message
+                    }).then(function () {
+                        window.location.href = '../Home/Admin';
+                    });
+
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: response.message
+                    });
+                }
+            },
+            error: function (xhr, status, error) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'An error occurred. Please try again later.'
+                });
             }
         });
     });

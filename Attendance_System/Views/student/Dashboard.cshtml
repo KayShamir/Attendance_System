@@ -8,13 +8,33 @@
     ViewBag.Title = "Dashboard";
 
     string connStr = @"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=C:\Users\kaysh\source\repos\Attendance_System\Attendance_System\App_Data\attendance.mdf;Integrated Security=True";
-    List<dynamic> courses = new List<dynamic>();
+    List<dynamic> openCourses = new List<dynamic>();
 
     using (var db = new SqlConnection(connStr))
     {
         db.Open();
-        
-        string query = "SELECT * FROM STUDENTCOURSE_DETAILS";
+
+        string query = @"
+                        SELECT 
+                            c.COURSE_ID, 
+                            c.COURSE_CODE, 
+                            c.COURSE_TITLE, 
+                            c.COURSE_DESCRIPTION, 
+                            c.COURSE_TYPE, 
+                            c.COURSE_SCHED, 
+                            c.COURSE_TIME, 
+                            c.COURSE_IMAGE_URL, 
+                            c.COURSE_UNITS, 
+                            c.COURSE_SECTION, 
+                            sc.STUCOURSE_STATUS
+                        FROM 
+                            COURSE c
+                        LEFT JOIN 
+                            STUDENT_COURSE sc ON c.COURSE_ID = sc.COURSE_ID AND sc.STUDENT_ID = @stud_id
+                        WHERE sc.STUCOURSE_STATUS IS NULL OR sc.STUCOURSE_STATUS != 'ENROLLED'
+                        ORDER BY 
+                            c.COURSE_ID
+                        ";
 
         using (var cmd = new SqlCommand(query, db))
         {
@@ -26,7 +46,7 @@
                 {
                     while (reader.Read())
                     {
-                        courses.Add(new
+                        openCourses.Add(new
                         {
                             Block = reader["COURSE_SECTION"].ToString(),
                             Image = reader["COURSE_IMAGE_URL"].ToString(),
@@ -41,7 +61,64 @@
             }
         }
 
-        
+
+    }
+}
+
+@{ 
+    List<dynamic> enrollCourses = new List<dynamic>();
+
+    using (var db = new SqlConnection(connStr))
+    {
+        db.Open();
+
+        string query = @"
+                    SELECT 
+                        c.COURSE_ID, 
+                        c.COURSE_CODE, 
+                        c.COURSE_TITLE, 
+                        c.COURSE_DESCRIPTION, 
+                        c.COURSE_TYPE, 
+                        c.COURSE_SCHED, 
+                        c.COURSE_TIME, 
+                        c.COURSE_IMAGE_URL, 
+                        c.COURSE_UNITS, 
+                        c.COURSE_SECTION, 
+                        sc.STUCOURSE_STATUS
+                    FROM 
+                        COURSE c
+                    INNER JOIN 
+                        STUDENT_COURSE sc ON c.COURSE_ID = sc.COURSE_ID AND sc.STUDENT_ID = @stud_id AND sc.STUCOURSE_STATUS = 'ENROLLED'
+                    ORDER BY 
+                        c.COURSE_ID
+                    ";
+
+        using (var cmd = new SqlCommand(query, db))
+        {
+            cmd.Parameters.AddWithValue("@stud_id", Session["id"]);
+
+            using (var reader = cmd.ExecuteReader())
+            {
+                if (reader.HasRows)
+                {
+                    while (reader.Read())
+                    {
+                        enrollCourses.Add(new
+                        {
+                            Block = reader["COURSE_SECTION"].ToString(),
+                            Image = reader["COURSE_IMAGE_URL"].ToString(),
+                            Code = reader["COURSE_CODE"].ToString(),
+                            Title = reader["COURSE_TITLE"].ToString(),
+                            Schedule = reader["COURSE_SCHED"].ToString(),
+                            Time = reader["COURSE_TIME"].ToString(),
+                            Status = reader["STUCOURSE_STATUS"].ToString()
+                        });
+                    }
+                }
+            }
+        }
+
+
     }
 }
 
@@ -73,25 +150,25 @@
             <button type="button" class="btn btn-Open" onclick="openTab(event, 'Open')">
                 <img src="@Url.Content("~/Content/Images/Open Book.png")" alt="Courses Icon" class="button-icon"> Open Courses
             </button>
+            <div class="logout-container">
+                <button type="button" class="btn btn-Logout" id="logoutButton">
+                    <img src="@Url.Content("~/Content/Images/Logout.png")" alt="Logout Icon" class="button-icon"> Logout
+                </button>
+            </div>
         </div>
 
         <!--Dashboard Main Container-->
         <div class="dash-container">
             <div id="Enrolled" class="tabcontent">
-                enrolled courses
-            </div>
-
-            <!--Courses Main Container-->
-            <div id="Open" class="tabcontent">
                 <div class="row pt-5">
-                    @if (courses.Any())
+                    @if (enrollCourses.Any())
                     {
-                        for (var i = 0; i < courses.Count; i++)
+                        for (var i = 0; i < enrollCourses.Count; i++)
                         {
-                            var course = courses[i];
+                            var course = enrollCourses[i];
 
                             <div class="col-md-4 mb-4">
-                                <div class="card" style="height: 20rem; width: 20rem; cursor: pointer;" onclick="showCourseDetails('@HttpUtility.UrlEncode(course.Code)', '@HttpUtility.UrlEncode(course.Block)')">
+                                <div class="card" style="height: 25rem; width: 20rem; cursor: pointer;" onclick="showCourseDetails('@HttpUtility.UrlEncode(course.Code)', '@HttpUtility.UrlEncode(course.Block)', '@HttpUtility.UrlEncode(course.Status)')">
                                     <img src="../Home/Image?filename=@HttpUtility.UrlEncode(course.Image)" class="card-img-top h-100" alt="Course Image">
                                     <div class="card-body">
                                         <h6 class="card-title text-truncate fs-10">@course.Title</h6>
@@ -99,8 +176,42 @@
                                         <p class="card-text">
                                             <span class="d-block text-truncate fs-20 text-muted">@course.Block</span>
                                             <span class="d-block text-truncate fs-20 text-muted">@course.Schedule | @course.Time</span>
+                                            <span class="d-block text-truncate fs-20 text-muted">@course.Status</span>
                                         </p>
-                                        <p>@course.Status</p>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="col-12">
+                            <p class="text-center">No Subjects available.</p>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!--Courses Main Container-->
+            <div id="Open" class="tabcontent">
+                <div class="row pt-5">
+                    @if (openCourses.Any())
+                    {
+                        for (var i = 0; i < openCourses.Count; i++)
+                        {
+                            var course = openCourses[i];
+
+                            <div class="col-md-4 mb-4">
+                                <div class="card" style="height: 25rem; width: 20rem; cursor: pointer;" onclick="showCourseDetails('@HttpUtility.UrlEncode(course.Code)', '@HttpUtility.UrlEncode(course.Block)', '@HttpUtility.UrlEncode(course.Status)')">
+                                    <img src="../Home/Image?filename=@HttpUtility.UrlEncode(course.Image)" class="card-img-top h-100" alt="Course Image">
+                                    <div class="card-body">
+                                        <h6 class="card-title text-truncate fs-10">@course.Title</h6>
+                                        <h6 class="card-subtitle mb-2 text-truncate fs-16 text-muted">@course.Code</h6>
+                                        <p class="card-text">
+                                            <span class="d-block text-truncate fs-20 text-muted">@course.Block</span>
+                                            <span class="d-block text-truncate fs-20 text-muted">@course.Schedule | @course.Time</span>
+                                            <span class="d-block text-truncate fs-20 text-muted">@course.Status</span>
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -130,9 +241,11 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                         <button type="button" class="btn btn-primary" id="enrollButton">Enroll</button>
+                        <button type="button" class="btn btn-danger" id="unenrollButton">Unenroll</button>
                     </div>
                 </div>
             </div>
+        </div>
         </div>
 
         <script>
@@ -162,10 +275,19 @@
             setInterval(updateDateTime, 1000);
             updateDateTime();
 
-            function showCourseDetails(courseCode, section) {
+            function showCourseDetails(courseCode, section, status) {
                 document.getElementById('modalCourseCode').textContent = courseCode;
                 document.getElementById('modalSection').textContent = section;
 
+                if (status == 'PENDING') {
+                    console.log(status)
+                    document.getElementById("enrollButton").style.display = "none";
+                    document.getElementById("unenrollButton").style.display = "block";
+                }
+                else {
+                    document.getElementById("enrollButton").style.display = "block";
+                    document.getElementById("unenrollButton").style.display = "none";
+                }
                 var myModal = new bootstrap.Modal(document.getElementById('courseModal'));
                 myModal.show();
             }
@@ -187,6 +309,15 @@
         margin: 0;
         overflow: hidden;
         position: relative;
+    }
+
+    .logout-container {
+        margin-top: auto; /* Pushes logout button to the bottom */
+        text-align: center;
+    }
+
+    .btn-Logout:focus {
+        outline: none;
     }
 
     .card-container {

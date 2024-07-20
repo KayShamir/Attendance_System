@@ -67,7 +67,45 @@ namespace Attendance_System.Controllers
                         }
                     }
                 }
-                return Json(new { success = false, message = Session["id"] + "Hello: " + course_code });
+                return Json(new { success = false, message = "Error" });
+
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Error: " + ex.Message });
+            }
+
+        }
+
+        [HttpPost]
+        public ActionResult Unenroll(string course_code, string course_section)
+        {
+            try
+            {
+                using (var db = new SqlConnection(connStr))
+                {
+                    db.Open();
+
+                    string query = @"
+                            DELETE FROM Student_Course
+                            WHERE STUDENT_ID = @stud_id
+                                AND COURSE_ID IN (
+                                    SELECT Course.COURSE_ID
+                                    FROM Course
+                                    WHERE Course.COURSE_CODE = @course_code
+                                        AND Course.COURSE_SECTION = @course_section
+                                )";
+
+                    using (var cmd = new SqlCommand(query, db))
+                    {
+                        cmd.Parameters.AddWithValue("@course_code", course_code);
+                        cmd.Parameters.AddWithValue("@course_section", course_section);
+                        cmd.Parameters.AddWithValue("@stud_id", Session["id"]);
+
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+                return Json(new { success = true, message = "Unenrolled Successfully" });
 
             }
             catch (Exception ex)

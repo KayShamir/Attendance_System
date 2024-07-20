@@ -6,6 +6,12 @@ using System.Web.Mvc;
 using System.Data;
 using System.Data.SqlClient;
 using System.IO;
+using System.Net;
+using RestSharp;
+using System.Net.PeerToPeer;
+using System.Collections.Specialized;
+
+
 
 namespace Attendance.Controllers
 {
@@ -33,19 +39,26 @@ namespace Attendance.Controllers
 
         public ActionResult Admin()
         {
+            if (Session["user"] == null)
+            {
+                return RedirectToAction("Login", "auth");
+            }
+
             return View();
         }
 
         [HttpPost]
         public ActionResult Admin(FormCollection collection, HttpPostedFileBase img)
         {
+            // Check if image is uploaded
             if (img == null || img.ContentLength <= 0)
             {
                 Response.Write("<script>alert('Please upload an image.')</script>");
                 return View();
             }
+
             string imag = Path.GetFileName(img.FileName);
-            string logpath = "c:\\attendance";  // Make sure this directory exists on your server
+            string logpath = "c:\\attendance";  // Ensure this directory exists on your server
             string filepath = Path.Combine(logpath, imag);
             img.SaveAs(filepath);
 
@@ -54,10 +67,45 @@ namespace Attendance.Controllers
             var description = collection["description"];
             var course_type = collection["courseType"];
             var units = collection["units"];
-            var schedule = collection["schedule"];
-            var time = collection["time"];
+            var scheduleDays = collection.GetValues("schedule");
             var block = collection["block"];
 
+            var startTimes = new List<string>();
+            var endTimes = new List<string>();
+
+            // Check if any required field is missing
+            if (string.IsNullOrEmpty(code) ||
+                string.IsNullOrEmpty(title) ||
+                string.IsNullOrEmpty(description) ||
+                string.IsNullOrEmpty(course_type) ||
+                string.IsNullOrEmpty(units) ||
+                scheduleDays == null ||
+                scheduleDays.Length == 0 ||
+                string.IsNullOrEmpty(block))
+            {
+                Response.Write("<script>alert('Please input all required data.')</script>");
+                return View();
+            }
+
+            // Process schedule and times
+            foreach (var day in scheduleDays)
+            {
+                var startTime = collection[$"time-{day}-start"];
+                var endTime = collection[$"time-{day}-end"];
+
+                if (string.IsNullOrEmpty(startTime) || string.IsNullOrEmpty(endTime))
+                {
+                    Response.Write($"<script>alert('Please input both start and end times for {day}.')</script>");
+                    return View();
+                }
+
+                startTimes.Add(startTime);
+                endTimes.Add(endTime);
+            }
+
+            var timePairs = startTimes.Zip(endTimes, (start, end) => $"{start} - {end}");
+
+            // Save course data to database
             using (var db = new SqlConnection(connStr))
             {
                 db.Open();
@@ -71,8 +119,8 @@ namespace Attendance.Controllers
                     cmd.Parameters.AddWithValue("@description", description);
                     cmd.Parameters.AddWithValue("@course_type", course_type);
                     cmd.Parameters.AddWithValue("@units", units);
-                    cmd.Parameters.AddWithValue("@schedule", schedule);
-                    cmd.Parameters.AddWithValue("@time", time);
+                    cmd.Parameters.AddWithValue("@schedule", string.Join(", ", scheduleDays));
+                    cmd.Parameters.AddWithValue("@time", string.Join(", ", timePairs));
                     cmd.Parameters.AddWithValue("@block", block);
                     cmd.Parameters.AddWithValue("@file", imag);
 
@@ -85,11 +133,14 @@ namespace Attendance.Controllers
                     else
                     {
                         // Insert failed
-                        return RedirectToAction("Error", "Admin"); // Redirect to an error page or handle accordingly
+                        Response.Write("<script>alert('Failed to create the course. Please try again.')</script>");
+                        return View();
                     }
                 }
             }
         }
+
+       
 
         private bool CheckIfCodeExists(string code)
         {
@@ -243,5 +294,98 @@ namespace Attendance.Controllers
 
         }
 
+        [HttpPost]
+        public ActionResult Unenroll(string student_id, string course_code, string course_section)
+        {
+            try
+            {
+                using (var db = new SqlConnection(connStr))
+                {
+                    db.Open();
+
+                    string query = @"
+                            DELETE FROM Student_Course
+                            WHERE STUDENT_ID = @stud_id
+                                AND COURSE_ID IN (
+                                    SELECT Course.COURSE_ID
+                                    FROM Course
+                                    WHERE Course.COURSE_CODE = @course_code
+                                        AND Course.COURSE_SECTION = @course_section
+                                )";
+
+                    using (var cmd = new SqlCommand(query, db))
+                    {
+                        cmd.Parameters.AddWithValue("@course_code", course_code);
+                        cmd.Parameters.AddWithValue("@course_section", course_section);
+                        cmd.Parameters.AddWithValue("@stud_id", student_id);
+
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+                return Json(new { success = true, message = "Student Application Denied" });
+
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Error: " + ex.Message });
+            }
+
+        }
+
+        [HttpPost]
+        public ActionResult Enroll(string student_id, string course_code, string course_section, string contact)
+        {
+            try
+            {
+                contact = contact.StartsWith("0") ? contact.Substring(1) : contact;
+
+                using (var db = new SqlConnection(connStr))
+                {
+                    db.Open();
+
+                    string query = @"
+                            UPDATE Student_Course
+                            SET STUCOURSE_STATUS = 'ENROLLED'
+                            WHERE STUDENT_ID = @stud_id
+                                AND COURSE_ID IN (
+                                    SELECT Course.COURSE_ID
+                                    FROM Course
+                                    WHERE Course.COURSE_CODE = @course_code
+                                        AND Course.COURSE_SECTION = @course_section
+                                )";
+
+                    using (var cmd = new SqlCommand(query, db))
+                    {
+                        cmd.Parameters.AddWithValue("@course_code", course_code);
+                        cmd.Parameters.AddWithValue("@course_section", course_section);
+                        cmd.Parameters.AddWithValue("@stud_id", student_id);
+
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+
+                using (WebClient client = new WebClient())
+                {
+                    byte[] response =
+                    client.UploadValues("https://semaphore.co/api/v4/messages", new NameValueCollection()
+                    {
+                        { "apikey", "a8ba95e57a2a01cd12e5f36a6eb2d93c" },
+                        { "number", "09939319964" },
+                        { "message", "I just sent my first message with Semaphore" },
+                        { "sendername", "SEMAPHORE" },
+                    });
+                    string result = System.Text.Encoding.UTF8.GetString(response);
+                }
+
+                return Json(new { success = true, message = "Student Application Approved" });
+
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Error: " + ex.Message });
+            }
+
+        }
+
     }
-}
+} 

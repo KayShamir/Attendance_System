@@ -271,28 +271,32 @@ namespace Attendance.Controllers
         }
 
         // DELETE
-        [HttpPost]
-        public ActionResult deleteCourse(string course_code)
+        public ActionResult deleteCourse()
         {
-            try
-            {
-                using (var db = new SqlConnection(connStr))
-                {
-                    db.Open();
-                    string query = @"DELETE FROM COURSE WHERE COURSE_ID=@code";
+            var data = new List<object>();
+            var code = Request["code"];
 
-                    using (var cmd = new SqlCommand(query, db))
-                    {
-                        cmd.Parameters.AddWithValue("@code", course_code);
-                        cmd.ExecuteNonQuery();
-                    }
-                }
-                return Json(new { success = true, message = "Course successfully deleted" });
-            }
-            catch (Exception ex)
+            using (var db = new SqlConnection(connStr))
             {
-                return Json(new { success = false, message = "Error: " + ex.Message });
+                db.Open();
+                using (var cmd = db.CreateCommand())
+                {
+                    cmd.CommandType = CommandType.Text;
+                    cmd.CommandText = $"DELETE FROM COURSE WHERE COURSE_ID='" + code + "'";
+                    var ctr = cmd.ExecuteNonQuery();
+                    if (ctr > 0)
+                    {
+                        data.Add(new
+                        {
+                            mess = 0
+                        });
+                    }
+
+                }
+
             }
+            return Json(data, JsonRequestBehavior.AllowGet);
+
         }
 
         [HttpPost]

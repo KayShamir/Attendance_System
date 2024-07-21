@@ -93,45 +93,27 @@
         event.preventDefault();
         var code = $(this).data("course-code");
 
-        var formData = new FormData();
-        formData.append('course_code', code)
+        $.post("../Home/deleteCourse", {
+            code: code
 
-        console.log(code)
-
-        $.ajax({
-            url: '../Home/deleteCourse',
-            type: 'POST',
-            data: formData,
-            contentType: false,
-            processData: false,
-            success: function (response) {
-                if (response.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Success',
-                        text: response.message
-                    }).then(function () {
-                        window.location.href = '../Home/Admin';
-                    });
-
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: response.message
-                    });
-                }
-            },
-            error: function (xhr, status, error) {
+        }, function (data) {
+            console.log(data)
+            alert(data)
+            if (data[0].mess == 0) {
                 Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'An error occurred. Please try again later.'
+                    icon: 'success',
+                    title: 'Success',
+                    text: 'Course was successfully deleted'
+                }).then(function () {
+                    location.reload()
                 });
-            }
-        });
 
+            }
+           
+        });
     });
+
+ 
 
     $(".denyButton").click(function (event) {
         event.preventDefault();

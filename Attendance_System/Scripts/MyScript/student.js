@@ -1,4 +1,6 @@
 ﻿$().ready(function () {
+    history.pushState(null, null, location.href);
+
     $("#enrollButton").click(function (event) {
         event.preventDefault();
         var course_code = $('#modalCourseCode').text()

@@ -4,6 +4,7 @@
     var schedDate;
     var schedStartTime;
     var schedEndTime;
+    history.pushState(null, null, location.href);
 
     $(document).ready(function () {
         $("[id^=edit_]").click(function (event) {
@@ -92,15 +93,44 @@
         event.preventDefault();
         var code = $(this).data("course-code");
 
-        $.post("../Home/deleteCourse", {
-            code: code
+        var formData = new FormData();
+        formData.append('course_code', code)
 
-        }, function (data) {
-            if (data[0].mess == 0) {
-                alert('Data was successfully removed');
-                location.reload();
+        console.log(code)
+
+        $.ajax({
+            url: '../Home/deleteCourse',
+            type: 'POST',
+            data: formData,
+            contentType: false,
+            processData: false,
+            success: function (response) {
+                if (response.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success',
+                        text: response.message
+                    }).then(function () {
+                        window.location.href = '../Home/Admin';
+                    });
+
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: response.message
+                    });
+                }
+            },
+            error: function (xhr, status, error) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'An error occurred. Please try again later.'
+                });
             }
         });
+
     });
 
     $(".denyButton").click(function (event) {
@@ -273,8 +303,36 @@
        
         });
 
-        $('#note').on('click', function () {
+        $('#note').click(function () {
+            var formData = new FormData();
 
+            formData.append('course_id', id);
+
+            $.ajax({
+                url: '../Home/Start',
+                type: 'POST',
+                data: formData,
+                contentType: false,
+                processData: false,
+                success: function (response) {
+                    if (response.success) {
+                        window.location.href = '../attendance/attendance'
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: response.message
+                        });
+                    }
+                },
+                error: function (xhr, status, error) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'An error occurred. Please try again later.'
+                    });
+                }
+            });
         })
     })
 
@@ -307,6 +365,7 @@
             var formData = new FormData();
             formData.append('course_id', id);
             formData.append('date', date);
+
 
             $.ajax({
                 url: '../Home/Attendance',
@@ -366,8 +425,11 @@
             var startSched = new Date(strStartSched);
             var endSched = new Date(strEndSched);
 
-            if (startSched < today && schedDate == strToday.split('T')[0]) {
+            if (startSched < today && schedDate == strToday.split('T')[0] && today < endSched) {
                 $('#note').show()
+            }
+            else {
+                $('#note').hide()
             }
             
         }

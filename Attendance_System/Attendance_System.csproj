@@ -289,6 +289,7 @@
     <Compile Include="App_Start\BundleConfig.cs" />
     <Compile Include="App_Start\FilterConfig.cs" />
     <Compile Include="App_Start\RouteConfig.cs" />
+    <Compile Include="Controllers\attendanceController.cs" />
     <Compile Include="Controllers\authController.cs" />
     <Compile Include="Controllers\HomeController.cs" />
     <Compile Include="Controllers\studentController.cs" />
@@ -329,6 +330,7 @@
     <Content Include="Content\Images\Dashboard.svg" />
     <Content Include="Content\Images\Eye.svg" />
     <Content Include="Content\Images\Group 153.png" />
+    <Content Include="Content\Images\Group 170.png" />
     <Content Include="Content\Images\image.svg" />
     <Content Include="Content\Images\Info.svg" />
     <Content Include="Content\Images\Left.svg" />
@@ -359,6 +361,7 @@
     <Content Include="Scripts\jquery.validate.unobtrusive.js" />
     <Content Include="Scripts\jquery.validate.unobtrusive.min.js" />
     <Content Include="Scripts\modernizr-2.8.3.js" />
+    <Content Include="Scripts\MyScript\attendance.js" />
     <Content Include="Scripts\MyScript\auth.js" />
     <Content Include="Scripts\MyScript\jquery-3.7.1.min.js" />
     <Content Include="Scripts\MyScript\student.js" />
@@ -380,6 +383,7 @@
     <Content Include="Views\Home\Admin.cshtml" />
     <Content Include="Views\auth\Login.cshtml" />
     <Content Include="Views\student\Dashboard.cshtml" />
+    <Content Include="Views\attendance\attendance.cshtml" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Models\" />

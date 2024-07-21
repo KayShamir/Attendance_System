@@ -13,6 +13,8 @@ using System.Collections.Specialized;
 using System.Net.Http.Headers;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Vonage.Request;
+using Vonage;
 
 
 
@@ -269,32 +271,28 @@ namespace Attendance.Controllers
         }
 
         // DELETE
-        public ActionResult deleteCourse()
+        [HttpPost]
+        public ActionResult deleteCourse(string course_code)
         {
-            var data = new List<object>();
-            var code = Request["code"];
-
-            using (var db = new SqlConnection(connStr))
+            try
             {
-                db.Open();
-                using (var cmd = db.CreateCommand())
+                using (var db = new SqlConnection(connStr))
                 {
-                    cmd.CommandType = CommandType.Text;
-                    cmd.CommandText = $"DELETE FROM COURSE WHERE COURSE_CODE='" + code + "'";
-                    var ctr = cmd.ExecuteNonQuery();
-                    if (ctr > 0)
+                    db.Open();
+                    string query = @"DELETE FROM COURSE WHERE COURSE_ID=@code";
+
+                    using (var cmd = new SqlCommand(query, db))
                     {
-                        data.Add(new
-                        {
-                            mess = 0
-                        });
+                        cmd.Parameters.AddWithValue("@code", course_code);
+                        cmd.ExecuteNonQuery();
                     }
-
                 }
-
+                return Json(new { success = true, message = "Course successfully deleted" });
             }
-            return Json(data, JsonRequestBehavior.AllowGet);
-
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Error: " + ex.Message });
+            }
         }
 
         [HttpPost]
@@ -336,7 +334,7 @@ namespace Attendance.Controllers
         }
 
         [HttpPost]
-        public ActionResult Enroll(string student_id, string course_code, string course_section, string contact)
+        public async Task<ActionResult> Enroll(string student_id, string course_code, string course_section, string contact)
         {
             try
             {
@@ -367,9 +365,28 @@ namespace Attendance.Controllers
                     }
                 }
 
-                
+                var credentials = Credentials.FromApiKeyAndSecret(
+                                "572f243d",
+                                "aWlNXofFpdXs2Gv7"
+                                );
 
-                return Json(new { success = true, message = "Student Application Approved" });
+                var VonageClient = new VonageClient(credentials);
+
+                var response = await VonageClient.SmsClient.SendAnSmsAsync(new Vonage.Messaging.SendSmsRequest()
+                {
+                    To = "63" + contact,
+                    From = "VONAGE APIs",
+                    Text = "Congratulations! Your application for enrolling in " + course_code + " " + course_section + " has been approved."
+                });
+
+                if (response.Messages[0].Status == "0")
+                {
+                    return Json(new { success = true, message = "Student Application Approved 63" + contact });
+                }
+                else
+                {
+                    return Json(new { success = false, message = $"Message failed with error: {response.Messages[0].ErrorText}" });
+                }
 
             }
             catch (Exception ex)
@@ -402,14 +419,11 @@ namespace Attendance.Controllers
                                         a.ATTENDANCE_STATUS,
                                         a.ATTENDANCE_SUPPORTING_DOCS
                                     FROM 
-                                        STUDENT sc
-                                        INNER JOIN STUDENT_COURSE sc ON s.STUDENT_ID = sc.STUDENT_ID
-                                        LEFT JOIN ATTENDANCE a ON sc.COURSE_ID = a.COURSE_ID
-                                    WHERE 
-                                        sc.COURSE_ID = @course_id
-                                        AND a.ATTENDANCE_DATE = @date
+                                        STUDENT_COURSE sc
+                                        JOIN ATTENDANCE a ON sc.COURSE_ID = a.COURSE_ID AND a.STUDENT_ID = sc.STUDENT_ID AND a.ATTENDANCE_DATE = @date AND sc.COURSE_ID = @course_id
+                                        JOIN STUDENT s ON s.STUDENT_ID = a.STUDENT_ID
                                     ORDER BY 
-                                        s.STUDENT_LASTNAME, s.STUDENT_FIRSTNAME
+                                        s.STUDENT_LASTNAME, s.STUDENT_FIRSTNAME;
                                 ";
 
                     using (var cmd = new SqlCommand(query, db))
@@ -448,11 +462,10 @@ namespace Attendance.Controllers
         }
 
         [HttpPost]
-        public ActionResult Start(string course_id, string date)
+        public ActionResult Start(string course_id)
         {
             try
             {
-                var attendanceList = new List<Dictionary<string, object>>();
 
                 using (var db = new SqlConnection(connStr))
                 {
@@ -469,27 +482,12 @@ namespace Attendance.Controllers
                     {
                         cmd.Parameters.AddWithValue("@course_id", course_id);
 
-                        using (var reader = cmd.ExecuteReader())
-                        {
-                            while (reader.Read())
-                            {
-                                var list = new Dictionary<string, object>()
-                                {
-                                    {"student_id", reader["student_id"].ToString() },
-                                    {"student_lastname", reader["student_lastname"].ToString() },
-                                    {"student_firstname", reader["student_firstname"].ToString() },
-                                    {"student_midname", reader["student_midname"].ToString() },
-                                    {"time_in", reader["attendance_time_in"].ToString() },
-                                    {"remarks", reader["attendance_status"].ToString() },
-                                    {"docs", reader["attendance_supporting_docs"].ToString() }
-                                };
-
-                                attendanceList.Add(list);
-                            }
-                        }
+                        cmd.ExecuteNonQuery();
+                        Session["attendance"] = "start";
+                        Session["course_id"] = course_id;
                     }
                 }
-                return Json(attendanceList, JsonRequestBehavior.AllowGet);
+                return Json(new { success = true});
 
             }
             catch (Exception ex)
